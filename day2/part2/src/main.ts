@@ -18,7 +18,6 @@ async function main() {
     rolls.forEach((roll) => {
       return roll.map((cube) => {
         const [amount, color] = cube.trim().split(" ");
-
         if (minNeededForGame[color] < Number(amount)) {
           minNeededForGame[color] = Number(amount);
         }
