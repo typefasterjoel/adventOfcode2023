@@ -4,16 +4,16 @@ async function main() {
 
   const lines = (await file.text()).split("\n");
 
-  const numberDictionary: { [key: string]: number } = {
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
+  const numberDictionary: { [key: string]: string } = {
+    one: "1",
+    two: "2",
+    three: "3",
+    four: "4",
+    five: "5",
+    six: "6",
+    seven: "7",
+    eight: "8",
+    nine: "9",
   };
 
   const reverseNumberDictionary: { [key: string]: number } = {
@@ -29,27 +29,32 @@ async function main() {
   };
 
   const numbers = lines.map((line, index) => {
-    // find the last match of a number word
-    const findFirstNumber = line.match(
-      /(one|two|three|four|five|six|seven|eight|nine|[1-9])/i
-    )?.[0];
+    // find all possible numbers in the line
+    const regex = /(one|two|three|four|five|six|seven|eight|nine|[1-9])/gi;
+    let matches: string[] = [];
 
-    const findLastNumber = line
-      .split("")
-      .reverse()
-      .join("")
-      .match(/(eno|owt|eerht|ruof|evif|xis|neves|thgie|enin|[1-9])/i)?.[0];
+    for (let i = 0; i < line.length; i++) {
+      const substring = line.substring(i);
+      const match = substring.match(regex);
+      if (match) {
+        matches = matches.concat(match);
+      }
+    }
 
-    const firstNumber = numberDictionary[findFirstNumber!]
-      ? `${numberDictionary[findFirstNumber!]}`
-      : findFirstNumber!;
-    const lastNumber = reverseNumberDictionary[findLastNumber!]
-      ? `${reverseNumberDictionary[findLastNumber!]}`
-      : findLastNumber!;
+    // convert all words to numbers
+    matches = matches.map((match) => {
+      if (numberDictionary[match]) {
+        return numberDictionary[match].toString();
+      } else {
+        return match;
+      }
+    });
+
+    const firstNumber = matches[0];
+    const lastNumber = matches[matches.length - 1];
 
     const combined = firstNumber! + lastNumber!;
 
-    // console.log(combined, `--- line: ${line} --- index: ${index + 1}`);
     console.log(combined);
 
     return parseInt(combined);
