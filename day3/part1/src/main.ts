@@ -1,5 +1,30 @@
 import { lookup } from "dns";
 
+type AdjacentSymbol = {
+  adjacentSymbol: string;
+  row: number;
+  column: number;
+};
+
+type Numbers = {
+  line: number;
+  indexes: number[];
+  number: string;
+};
+
+type Symbols = {
+  line: number;
+  characterIndex: number;
+  symbol: string;
+};
+
+type Adjacents = {
+  adjacentNumber: AdjacentSymbol[];
+  symbol: string;
+};
+
+type Lookups = string;
+
 async function main() {
   const file = Bun.file("src/data.txt");
   if (!file.size) return console.log("no data to process");
@@ -17,29 +42,25 @@ async function main() {
     [-1, -1], // up left
   ];
 
-  const lookups = new Set<string>();
-  let numbers = new Set<{
-    line: number;
-    indexes: number[];
-    number: string;
-  }>();
+  const lookups: Numbers[] = [];
 
-  let symbols = new Set<{
-    line: number;
-    characterIndex: number;
-    symbol: string;
-  }>();
+  let numbers: Numbers[] = [];
 
-  let foundAdjacentNumbers = new Set<{
-    adjacentNumber: string[];
-    line: number;
-    symbol: string;
-  }>();
+  let symbols: Symbols[] = [];
+
+  let foundAdjacentNumbers: Adjacents[] = [];
+
+  const findNumbers = (character: number, indexes: number[]) => {
+    return (
+      indexes.includes(character - 1) ||
+      indexes.includes(character) ||
+      indexes.includes(character + 1)
+    );
+  };
 
   lines.forEach((line, lineIndex) => {
-    const onlySymbolRegex = /[^\d\s\.]/gi;
+    const onlySymbolRegex = /[^\w\d\s\.]/g;
     const onlySymbols = line.match(onlySymbolRegex);
-
     const onlyNumbers = line.match(/\d+/g);
 
     if (onlyNumbers) {
@@ -50,7 +71,7 @@ async function main() {
           return startNumber + i;
         });
 
-        numbers.add({
+        numbers.push({
           line: lineIndex,
           indexes,
           number,
@@ -61,83 +82,102 @@ async function main() {
     if (!onlySymbols) return;
 
     onlySymbols.forEach((symbol) => {
-      const symbolIndex = line.indexOf(`${symbol}`);
-      symbols.add({
+      const lastSymbol = symbols?.[symbols.length - 1];
+      let startIndex = 0;
+      if (!!lastSymbol && lastSymbol?.line == lineIndex) {
+        startIndex = lastSymbol.characterIndex + 1;
+      }
+      const symbolIndex = line.indexOf(symbol, startIndex);
+      symbols.push({
         line: lineIndex,
         characterIndex: symbolIndex,
         symbol,
       });
     });
+  });
 
-    symbols.forEach((symbol) => {
-      const { line, characterIndex, symbol: symbolFound } = symbol;
+  symbols.forEach((symbol) => {
+    const { line, characterIndex, symbol: symbolFound } = symbol;
 
-      const adjacentNumbers = coords
-        .map((coord) => {
-          const [y, x] = coord;
-          const adjacentSymbol = lines[line + y]?.[characterIndex + x];
-          return adjacentSymbol;
+    //  check top line
+    if (line != 0) {
+      lookups.push(
+        ...numbers.filter((num) => {
+          return (
+            num.line === line - 1 && findNumbers(characterIndex, num.indexes)
+          );
         })
-        .filter((symbol) => symbol !== ".");
-      foundAdjacentNumbers.add({
-        adjacentNumber: adjacentNumbers,
-        line: line,
-        symbol: symbolFound,
-      });
-    });
-
-    foundAdjacentNumbers.forEach((foundNum) => {
-      const numDicLookup = Array.from(numbers).find((number) => {
-        const { indexes, line } = number;
-        let found = false;
-        foundNum.adjacentNumber.forEach((adjacentNumber) => {
-          const foundIndex = index
-          if (foundIndex !== -1) found = true;
-        });
-
-        return found;
+      );
+    }
+    // check same line
+    lookups.push(
+      ...numbers.filter((num) => {
+        return num.line === line && findNumbers(characterIndex, num.indexes);
       })
+    );
 
-    // coords.forEach((coord) => {
-    //   const [y, x] = coord;
-    //   const adjacentSymbol = lines[lineIndex + y]?.[symbolIndex + x];
-    //   if (!isNaN(Number(adjacentSymbol))) {
-    //     // Find the number correspondant to that symbol found
-    //     const foundLine = lineIndex + y;
-    //     const lineToLookup = lines[foundLine];
-    //     const characterLocation = lineToLookup.indexOf(adjacentSymbol);
-    //     console.log({ characterLocation, foundLine, adjacentSymbol });
+    //  check bottom line
+    if (line != lines.length - 1) {
+      lookups.push(
+        ...numbers.filter((num) => {
+          return (
+            num.line === line + 1 && findNumbers(characterIndex, num.indexes)
+          );
+        })
+      );
+    }
 
-    //     const numberFound = Array.from(numbers).find((number) => {
-    //       const { indexes, line } = number;
-    //       const found =
-    //         indexes.includes(characterLocation) && lineIndex + y === line;
-    //       if (found) {
-    //         // console.log(
-    //         //   found,
-    //         //   number.number,
-    //         //   characterLocation,
-    //         //   indexes,
-    //         //   line
-    //         // );
-    //       }
-    //       return found;
-    //     });
+    // const adjacentNumbers: AdjacentSymbol[] = coords
+    //   .map((coord) => {
+    //     const [y, x] = coord;
+    //     const adjacentSymbol = lines[line + y]?.[characterIndex + x];
+    //     return {
+    //       adjacentSymbol,
+    //       row: line + y,
+    //       column: characterIndex + x,
+    //     };
+    //   })
+    //   .filter((symbol) => symbol.adjacentSymbol !== ".");
 
-    //     if (!numberFound) return;
-    //     lookups.add(`${numberFound.number} ${symbol}`);
-    //   }
+    // foundAdjacentNumbers.push({
+    //   adjacentNumber: adjacentNumbers,
+    //   symbol: symbolFound,
     // });
   });
 
-  // console.log(Array.from(symbols));
-  console.log(Array.from(foundAdjacentNumbers));
-  // console.log(Array.from(numbers));
-  // console.log(Array.from(lookups));
+  // foundAdjacentNumbers.forEach((foundNum) => {
+  //   const { adjacentNumber, symbol } = foundNum;
 
-  let result = "";
+  //   adjacentNumber.forEach((adjacent) => {
+  //     const { row, column } = adjacent;
+  //     const numberFound = numbers.find((number) => {
+  //       const { indexes, line } = number;
+  //       const found = indexes.includes(column) && row === line;
+  //       return found;
+  //     });
 
-  console.log(result);
+  //     if (!numberFound) return;
+  //     lookups.push(numberFound.number);
+  //   });
+  // });
+
+  // console.log(foundAdjacentNumbers);
+
+  console.log(
+    lookups.sort((a, b) => a.line - b.line).map((lookup) => lookup.number)
+  );
+
+  console.log(
+    lookups
+      .map((lookup) => Number(lookup.number))
+      .reduce((acc, curr) => acc + curr, 0)
+  );
+
+  // let result = lookups
+  //   .map((lookup) => parseInt(lookup))
+  //   .reduce((acc, curr) => acc + curr, 0);
+
+  // console.log(result);
 }
 
 main();
